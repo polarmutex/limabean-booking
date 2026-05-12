@@ -421,6 +421,13 @@ pub trait Tolerance: Clone + Debug {
     ) -> Option<ToleranceNumber<Self>>;
 
     fn inferred_tolerance_multiplier(&self) -> Option<ToleranceNumber<Self>>;
+
+    /// When true, widens the tolerance for postings with a per-unit cost to account for
+    /// the precision lost when rounding the weight to the units' decimal scale.
+    /// Mirrors beancount's `infer_tolerance_from_cost` option.
+    fn infer_tolerance_from_cost(&self) -> bool {
+        false
+    }
 }
 
 pub type ToleranceNumber<T> = <<T as Tolerance>::Types as BookingTypes>::Number;

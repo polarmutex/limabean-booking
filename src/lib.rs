@@ -34,7 +34,9 @@ mod reductions;
 pub(crate) use reductions::{Reductions, book_reductions};
 
 mod tolerance;
-pub(crate) use tolerance::tolerance_residual;
+pub(crate) use tolerance::{
+    WithMultiplier, default_inferred_tolerance_multiplier, tolerance_residual,
+};
 
 #[cfg(test)]
 mod tests;

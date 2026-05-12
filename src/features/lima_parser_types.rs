@@ -123,6 +123,7 @@ pub struct LimaTolerance<'a> {
     default: HashMap<&'a str, Decimal>,
     default_fallback: Option<Decimal>,
     multiplier: Option<Decimal>,
+    infer_tolerance_from_cost: bool,
 }
 
 impl<'a> From<&parser::Options<'a>> for LimaTolerance<'a> {
@@ -130,6 +131,10 @@ impl<'a> From<&parser::Options<'a>> for LimaTolerance<'a> {
         let mut default = HashMap::default();
         let mut default_fallback = None;
         let multiplier = value.inferred_tolerance_multiplier().map(|x| *x.item());
+        let infer_tolerance_from_cost = value
+            .infer_tolerance_from_cost()
+            .map(|x| *x.item())
+            .unwrap_or(false);
 
         for (cur, tol) in value.inferred_tolerance_defaults() {
             if let Some(cur) = cur {
@@ -143,6 +148,7 @@ impl<'a> From<&parser::Options<'a>> for LimaTolerance<'a> {
             default,
             default_fallback,
             multiplier,
+            infer_tolerance_from_cost,
         }
     }
 }
@@ -162,6 +168,10 @@ impl<'a> Tolerance for LimaTolerance<'a> {
 
     fn inferred_tolerance_multiplier(&self) -> Option<<Self::Types as BookingTypes>::Number> {
         self.multiplier
+    }
+
+    fn infer_tolerance_from_cost(&self) -> bool {
+        self.infer_tolerance_from_cost
     }
 }
 

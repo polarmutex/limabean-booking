@@ -1508,6 +1508,27 @@ fn test_cost_posting_brokerage_rounding_within_tolerance() {
 }
 
 #[test]
+fn test_cost_posting_infer_tolerance_from_cost_option() {
+    // 86.216 TICKER × 91.6303 USD = 7899.9979... → rounded to scale 3: 7899.998
+    // Residual 0.002 > normal tolerance 0.0005, but within cost-inferred tolerance.
+    // With option "infer_tolerance_from_cost" "TRUE" this should balance.
+    booking_test_ok(
+        r#"
+option "infer_tolerance_from_cost" "TRUE"
+
+2020-01-01 * "Buy" #apply #bal
+  Assets:Stocks  86.216 TICKER {91.6303 USD}
+  Assets:USD    -7900 USD
+
+2020-01-01 * "Buy" #ex #booked
+  Assets:Stocks  86.216 TICKER {91.6303 USD, 2020-01-01}
+  Assets:USD    -7900 USD
+"#,
+        Booking::Strict,
+    );
+}
+
+#[test]
 fn test_price_rounding() {
     booking_test_ok(
         r#"

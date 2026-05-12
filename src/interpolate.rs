@@ -3,7 +3,8 @@ use std::fmt::Debug;
 use super::{
     AnnotatedPosting, BookedOrUnbookedPosting, BookingError, BookingTypes, CostSpec, Interpolated,
     Number, PostingBookingError, PostingCost, PostingCosts, PostingSpec, Price, PriceSpec,
-    Tolerance, TransactionBookingError, tolerance_residual,
+    Tolerance, ToleranceNumber, TransactionBookingError, WithMultiplier,
+    default_inferred_tolerance_multiplier, tolerance_residual,
 };
 
 #[derive(Debug)]
@@ -32,7 +33,16 @@ where
     T: Tolerance<Types = B>,
 {
     let mut weights = costeds.iter().map(|c| c.weight()).collect::<Vec<_>>();
-    let mut residual = tolerance_residual(tolerance, weights.iter().filter_map(|w| *w), currency);
+    let mut residual = if tolerance.infer_tolerance_from_cost() {
+        let multiplier = cost_inferred_multiplier(&costeds, tolerance);
+        let tol = WithMultiplier {
+            inner: tolerance.clone(),
+            multiplier,
+        };
+        tolerance_residual::<B, _>(&tol, weights.iter().filter_map(|w| *w), currency)
+    } else {
+        tolerance_residual(tolerance, weights.iter().filter_map(|w| *w), currency)
+    };
 
     let unknown = weights
         .iter()
@@ -350,4 +360,46 @@ where
         units,
         conversion: per_unit.map(|per_unit| Conversion { per_unit, total }),
     })
+}
+
+fn cost_inferred_multiplier<B, P, T>(
+    costeds: &[BookedOrUnbookedPosting<'_, B, P>],
+    tolerance: &T,
+) -> ToleranceNumber<T>
+where
+    B: BookingTypes,
+    P: PostingSpec<Types = B> + Debug,
+    T: Tolerance<Types = B>,
+{
+    let base = tolerance
+        .inferred_tolerance_multiplier()
+        .unwrap_or_else(default_inferred_tolerance_multiplier::<B>);
+
+    costeds
+        .iter()
+        .filter_map(|costed| {
+            let BookedOrUnbookedPosting::Unbooked(annotated) = costed else {
+                return None;
+            };
+            let p = annotated.posting;
+            let cost_spec = p.cost()?;
+            // total cost is exact; only per-unit costs introduce precision uncertainty
+            if cost_spec.total().is_some() {
+                return None;
+            }
+            let per_unit = cost_spec.per_unit()?;
+            let units = p.units()?;
+            let units_scale = units.scale();
+            let cost_scale = per_unit.scale();
+            let weight_scale = if units_scale == 0 {
+                cost_scale
+            } else {
+                units_scale
+            };
+            // contribution = base × |units| × 10^(weight_scale - cost_scale)
+            B::Number::new(1, cost_scale)
+                .checked_div(B::Number::new(1, weight_scale))
+                .map(|scale_ratio| base * units.abs() * scale_ratio)
+        })
+        .fold(base, |acc, m| if m > acc { m } else { acc })
 }

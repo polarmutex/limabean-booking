@@ -1,4 +1,4 @@
-use crate::{BookingTypes, Number, Tolerance};
+use crate::{BookingTypes, Number, Tolerance, ToleranceCurrency, ToleranceNumber};
 
 // Beancount Precision & Tolerances
 // https://docs.google.com/document/d/1lgHxUUEY-UVEgoF6cupz2f_7v7vEF7fiJyiSlYYlhOo
@@ -71,9 +71,32 @@ where
     }
 }
 
-fn default_inferred_tolerance_multiplier<B>() -> B::Number
+pub(crate) fn default_inferred_tolerance_multiplier<B>() -> B::Number
 where
     B: BookingTypes,
 {
     B::Number::new(5, 1) // 0.5
+}
+
+/// A tolerance wrapper that overrides the inferred tolerance multiplier,
+/// used to apply cost-inferred widening without modifying the base tolerance.
+#[derive(Clone, Debug)]
+pub(crate) struct WithMultiplier<T: Tolerance> {
+    pub(crate) inner: T,
+    pub(crate) multiplier: ToleranceNumber<T>,
+}
+
+impl<T: Tolerance> Tolerance for WithMultiplier<T> {
+    type Types = T::Types;
+
+    fn inferred_tolerance_default(
+        &self,
+        cur: &ToleranceCurrency<Self>,
+    ) -> Option<ToleranceNumber<Self>> {
+        self.inner.inferred_tolerance_default(cur)
+    }
+
+    fn inferred_tolerance_multiplier(&self) -> Option<ToleranceNumber<Self>> {
+        Some(self.multiplier)
+    }
 }
