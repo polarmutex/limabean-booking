@@ -1490,6 +1490,24 @@ fn test_robin_hood() {
 }
 
 #[test]
+fn test_cost_posting_brokerage_rounding_within_tolerance() {
+    // 0.981 × 45.55 = 44.68455 USD, brokerage settled for 44.68 USD.
+    // Residual 0.00455 < inferred tolerance 0.005 → should balance.
+    booking_test_ok(
+        r#"
+2018-02-23 * "Buy" #apply #bal
+  Assets:Stocks  0.981 RNPGX {45.55 USD}
+  Assets:USD    -44.68 USD
+
+2018-02-23 * "Buy" #ex #booked
+  Assets:Stocks  0.981 RNPGX {45.55 USD, 2018-02-23}
+  Assets:USD    -44.68 USD
+"#,
+        Booking::Strict,
+    );
+}
+
+#[test]
 fn test_price_rounding() {
     booking_test_ok(
         r#"

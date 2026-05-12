@@ -23,7 +23,7 @@ where
     let abs_residual = residual.abs();
 
     if let Some(min_nonzero_scale) = s.min_nonzero_scale.as_ref() {
-        (abs_residual >= B::Number::new(1, *min_nonzero_scale) * multiplier).then_some(residual)
+        (abs_residual > B::Number::new(1, *min_nonzero_scale) * multiplier).then_some(residual)
     } else {
         let tolerance = tol.inferred_tolerance_default(cur);
 
